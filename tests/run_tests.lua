@@ -27,6 +27,7 @@ local is_online = false
 local is_training = false
 local room_stage = 0
 local room_create_started = false
+local room_create_first_to = -1
 local joined_lobby = nil
 
 local function json_encode(val)
@@ -105,8 +106,8 @@ _G.uni2 = {
 		leave_training = function() return true end,
 		can_join_room = function() return true end,
 		join_room = function(lobby) joined_lobby = lobby; return true end,
-		room_create_start = function() room_create_started = true; room_stage = 1 end,
-		room_create_set_first_to = function() end,
+		room_create_start = function(ft) room_create_started = true; room_create_first_to = ft or 0; room_stage = 1 end,
+		room_create_set_first_to = function(ft) room_create_first_to = ft or 0 end,
 		room_create_stop = function() room_stage = 0 end,
 		room_create_step = function() return room_stage end,
 		room_create_stage = function() return room_stage, "Creating" end,
@@ -212,6 +213,7 @@ _G.uni2 = {
 dofile("main.lua")
 
 check(windows["rank_wars"] ~= nil, "main.lua registers rank_wars window")
+check(windows["rank_wars"].opts.max_width == 560 and windows["rank_wars"].opts.max_height == 680, "rank_wars window bounds max size")
 check(events["frame"] and #events["frame"] == 1, "main.lua registers frame callback")
 check(events["hud"] and #events["hud"] == 1, "main.lua registers hud callback")
 check(events["game_started"] and #events["game_started"] == 1, "main.lua registers game_started callback")
@@ -233,7 +235,7 @@ check(session.view().phase == "waiting_steam", "session parsed initial create la
 
 events["frame"][1]()
 events["frame"][1]()
-check(room_create_started, "host frame triggers automatic room creation")
+check(not room_create_started, "host waits for GET /match before starting room creation")
 check(#http_queue == 1 and http_queue[1].req.method == "GET", "host fetches initial match state")
 
 local match_body = "MATCH_OK"
@@ -248,6 +250,9 @@ json_mock_map[match_body] = {
 }
 http_queue[1].cb({ sent = true, status = 200, body = match_body, error = "" })
 http_queue = {}
+
+events["frame"][1]()
+check(room_create_started and room_create_first_to == 3, "host starts room creation with server firstTo after GET /match")
 
 current_lobby = "109775240999999"
 current_owner = "76561198000000001"
@@ -271,6 +276,15 @@ check(draw_calls > 0, "hud draws score pips during live online match")
 
 windows["rank_wars"].draw()
 check(true, "rank_wars UI draws without errors")
+
+windows["rank_wars"].open = true
+events["game_started"][1]()
+check(windows["rank_wars"].open == false, "game_started auto-closes rank_wars window")
+events["frame"][1]()
+if #http_queue == 1 then
+	http_queue[1].cb({ sent = true, status = 200, body = match_body, error = "" })
+	http_queue = {}
+end
 
 events["game_ended"][1]({
 	ending = "decided",

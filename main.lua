@@ -4,10 +4,12 @@ local ui = require("ui")
 
 uni2.ui.register_window("rank_wars", "Rank Wars", {
 	summary = "Automated ranked matches, live score pips HUD and replay uploads.",
-	width = 460,
-	height = 420,
-	min_width = 420,
-	min_height = 300,
+	width = 440,
+	height = 400,
+	min_width = 380,
+	min_height = 280,
+	max_width = 560,
+	max_height = 680,
 	open = false,
 }, function()
 	ui.draw()

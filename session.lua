@@ -51,6 +51,8 @@ local state = {
 	local_host_wins = 0,
 	local_guest_wins = 0,
 	finished = false,
+	match_loaded = false,
+	match_fetch_at = 0,
 	answered_games = 0,
 	score_due = false,
 	score_reads = 0,
@@ -155,6 +157,7 @@ local function fetch_match()
 		return
 	end
 
+	state.match_fetch_at = uni2.time()
 	state.api:fetch_match(function(answer)
 		if not answer.ok then
 			if state.phase ~= "in_match" then
@@ -171,6 +174,8 @@ local function fetch_match()
 		local before_h = state.info.score.host
 		local before_g = state.info.score.guest
 		state.info = parsed
+		state.match_loaded = true
+		state.error = ""
 
 		local recorded = parsed.score.host + parsed.score.guest
 		if recorded > state.played then
@@ -213,6 +218,8 @@ local function start_match(link)
 	state.local_host_wins = 0
 	state.local_guest_wins = 0
 	state.finished = false
+	state.match_loaded = false
+	state.match_fetch_at = 0
 	state.answered_games = 0
 	state.score_due = false
 	state.error = ""
@@ -285,6 +292,14 @@ local function watch_for_own_room()
 	local lobby = uni2.steam.lobby()
 	if lobby ~= "0" and uni2.steam.lobby_owner(lobby) == state.self_id then
 		report_room(lobby)
+		return
+	end
+
+	if not state.match_loaded then
+		local now = uni2.time()
+		if state.api and state.api:pending() == 0 and now - state.match_fetch_at >= kLaunchPollMs then
+			fetch_match()
+		end
 		return
 	end
 
@@ -477,6 +492,7 @@ function M.on_game_started()
 	if not is_live() then
 		return
 	end
+	uni2.ui.set_open("rank_wars", false)
 	fetch_match()
 end
 
@@ -572,8 +588,12 @@ end
 function M.view()
 	local detail = ""
 	if state.phase == "waiting_room" then
-		local _, text = uni2.game.room_create_stage()
-		detail = text
+		if not state.match_loaded then
+			detail = "Reading match settings"
+		else
+			local _, text = uni2.game.room_create_stage()
+			detail = text
+		end
 	elseif state.phase == "closed" then
 		detail = kClosedText[state.info.status] or "Rank Wars closed this match"
 	end
