@@ -1,0 +1,43 @@
+# UNI2 Rank Wars (Standalone Lua Add-on)
+
+Add-on oficial do **Rank Wars** para o **UNI2 Improvement Mod** (`UNI2-IM\Addons\RankWars`).
+
+Este repositório é **100% independente** do fork do Improvement Mod — não contém C++, não compila `dinput8.dll` e atualiza automaticamente pelo **UNI2 Mod Loader**.
+
+## Recursos
+
+- Leitura de links do Rank Wars (`create`, `join`, `replay`) via linha de comando e Steam launch query.
+- Criação automática de sala Player Match (limite de 2 jogadores + rematch conforme `first_to`) e entrada automática do convidado.
+- Captura de resultados e envio automático dos replays `.rep` para a API do Rank Wars com retry exponencial.
+- Placar ao vivo em pips direto no HUD da batalha (`hud.lua`).
+- Janela in-game no menu F1 (`Mod -> Rank Wars`), toasts de notificação, Steam Rich Presence, Replay Viewer e modo Sandbox de teste.
+
+## Instalação
+
+### Pelo UNI2 Mod Loader (recomendado)
+1. Abra o `UNI2ModLoader.exe` na pasta do jogo.
+2. Na aba **ADD-ONS**, cole a URL deste repositório no campo de link na parte inferior e clique em **DOWNLOAD & INSTALL** (ou baixe o `.zip` em Releases e clique em **INSTALL ZIP / BUNDLE**).
+3. Mantenha **Rank Wars** ativado e clique em **PLAY UNI2 (STEAM)**.
+
+Para atualizar depois, basta clicar em **UPDATE LINKED** no `UNI2ModLoader.exe` (ou ativar a checagem automática no startup na aba **CORE BASE**).
+
+### Instalação Manual
+Extraia os arquivos (`addon.ini` e `*.lua`) para:
+```text
+<Pasta do UNI2>\UNI2-IM\Addons\RankWars\
+```
+
+## Como publicar uma nova versão no GitHub
+
+1. Atualize `Version = ...` em `addon.ini` e faça commit das alterações em `main`.
+2. Crie e envie uma tag de release:
+   ```powershell
+   git tag v1.0.0
+   git push origin main --tags
+   ```
+3. O GitHub Actions (`.github/workflows/release.yml`) gera e publica automaticamente o `UNI2-RankWars-v1.0.0.zip` na página de **Releases**, e o **UNI2 Mod Loader** detecta a atualização automaticamente para todos os jogadores.
+
+Para empacotar localmente:
+```powershell
+.\package.ps1
+```
