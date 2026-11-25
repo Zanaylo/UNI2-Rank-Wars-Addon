@@ -1,0 +1,22 @@
+<Solution>
+  <Folder Name="/Lua/">
+    <File Path="main.lua" />
+    <File Path="session.lua" />
+    <File Path="client.lua" />
+    <File Path="protocol.lua" />
+    <File Path="launch_link.lua" />
+    <File Path="hud.lua" />
+    <File Path="ui.lua" />
+    <File Path="replay_viewer.lua" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <File Path="tests/run_tests.lua" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="addon.ini" />
+    <File Path="package.ps1" />
+    <File Path="README.md" />
+    <File Path=".gitignore" />
+    <File Path=".github/workflows/release.yml" />
+  </Folder>
+</Solution>
