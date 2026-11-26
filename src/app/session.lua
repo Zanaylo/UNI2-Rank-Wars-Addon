@@ -134,6 +134,8 @@ local kStates = {
 function Session:init(deps)
 	self.game = deps.game
 	self.steam = deps.steam
+	self.mem = deps.mem
+	self.offsets = deps.offsets
 	self.replay = deps.replay
 	self.fs = deps.fs
 	self.ui = deps.ui
@@ -160,6 +162,7 @@ function Session:init(deps)
 	self.reported_lobby = "0"
 	self.local_role = "host"
 	self.finished = false
+	self.show_finished_hud = false
 	self.join_started_at = 0
 	self.error = ""
 	self.last_game = ""
@@ -191,6 +194,35 @@ function Session:is_host()
 	return self.link ~= nil and self.link.action == "create"
 end
 
+function Session:is_ranked_match()
+	if not self.mem or not self.offsets or not self.offsets.MATCH_KIND then
+		return false
+	end
+	return self.mem.read_rva_i32(self.offsets.MATCH_KIND) == self.offsets.MATCH_KIND_RANK
+end
+
+function Session:match_lobby()
+	if not self.link then
+		return nil
+	end
+	local lobby = self:is_host() and self.reported_lobby or self.link.lobby
+	if not lobby or lobby == "" or lobby == "0" then
+		return nil
+	end
+	return lobby
+end
+
+function Session:in_match_lobby()
+	if self:is_ranked_match() then
+		return false
+	end
+	local target = self:match_lobby()
+	if not target then
+		return false
+	end
+	return self.steam.lobby() == target
+end
+
 function Session:fail(message)
 	self:set_phase("failed")
 	self.error = message
@@ -204,6 +236,7 @@ function Session:finish()
 		return
 	end
 	self.finished = true
+	self.show_finished_hud = self.game.in_match() == true and self:in_match_lobby()
 	self:set_phase("finished")
 	local score = self.tracker.info.score
 	self.toast("success", kToastTitle, string.format("Match over: %d - %d", score.host, score.guest))
@@ -211,6 +244,7 @@ end
 
 function Session:close_match(status)
 	self.finished = true
+	self.show_finished_hud = false
 	self:set_phase("closed")
 	local reason = kClosedText[status] or "Rank Wars closed this match"
 	local score = self.tracker.info.score
@@ -226,7 +260,11 @@ function Session:follow_status(status)
 end
 
 function Session:sync_presence()
-	self.presence:update(self:is_live(), self.tracker.info.score, self.tracker.info.first_to)
+	local show = self:is_live() and not self.fsm:is("failed")
+	if self.fsm:is("in_match") then
+		show = self:in_match_lobby()
+	end
+	self.presence:update(show, self.tracker.info.score, self.tracker.info.first_to)
 end
 
 function Session:handle_match_response(answer)
@@ -288,6 +326,7 @@ function Session:start_match(link)
 	self.api = nil
 	self.reported_lobby = "0"
 	self.finished = false
+	self.show_finished_hud = false
 	self.error = ""
 	self.last_game = ""
 	self.tracker:reset()
@@ -362,10 +401,12 @@ function Session:ensure_api()
 end
 
 function Session:step_waiting_room()
-	local lobby = self.room_flow:owned_lobby(self.self_id)
-	if lobby then
-		self:report_room(lobby)
-		return
+	if not self:is_ranked_match() then
+		local lobby = self.room_flow:owned_lobby(self.self_id)
+		if lobby then
+			self:report_room(lobby)
+			return
+		end
 	end
 
 	if not self.tracker.match_loaded then
@@ -412,13 +453,6 @@ function Session:step_joining()
 end
 
 function Session:step_in_match()
-	if self:is_host() and self.tracker.played == 0 then
-		local lobby = self.room_flow:owned_lobby(self.self_id)
-		if lobby and lobby ~= self.reported_lobby then
-			self:report_room(lobby)
-		end
-	end
-
 	if self.tracker:should_poll() then
 		self.tracker:mark_polled()
 		self:fetch_match()
@@ -432,6 +466,10 @@ end
 function Session:on_frame()
 	self.launch_watcher:poll(self.on_link_callback)
 	self.replay_viewer:on_frame()
+
+	if self.show_finished_hud and (not self.game.in_match() or not self:in_match_lobby()) then
+		self.show_finished_hud = false
+	end
 
 	if self.sandbox then
 		self.sandbox:tick()
@@ -455,7 +493,7 @@ function Session:on_frame()
 end
 
 function Session:on_game_started()
-	if not self:is_live() then
+	if not self.fsm:is("in_match") or not self:in_match_lobby() then
 		return
 	end
 	self.ui.set_open("rank_wars", false)
@@ -521,7 +559,7 @@ function Session:handle_game_answer(game_num, answer)
 end
 
 function Session:on_game_ended(report)
-	if not self:is_live() or self.finished or report.ending == "connection_lost" then
+	if not self.fsm:is("in_match") or self.finished or not self:in_match_lobby() or report.ending == "connection_lost" then
 		return
 	end
 
@@ -572,7 +610,10 @@ function Session:view()
 end
 
 function Session:scoreboard()
-	if not self.link or (not self:is_live() and not self.fsm:is("finished")) then
+	if not self.link or not self:in_match_lobby() then
+		return nil
+	end
+	if not self.fsm:is("in_match") and not (self.fsm:is("finished") and self.show_finished_hud) then
 		return nil
 	end
 

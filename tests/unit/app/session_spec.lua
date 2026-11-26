@@ -105,10 +105,17 @@ t.suite("app/session", function()
 		session:on_frame()
 		session:on_frame()
 		env:respond_next_http(200, match_body)
+		env:set_lobby("555", "76561198000000001")
+		session:on_frame()
+		session:on_frame()
+		env:respond_next_http(200, "{}")
+		session:on_frame()
+		env:respond_next_http(200, match_body)
 
 		session:on_game_ended({ ending = "connection_lost", winner = 0, local_side = 0, chara = { 0, 1 }, record = "R" })
 		t.assert_eq(#env.http_queue, 0)
 
+		env.in_match = true
 		session:on_game_ended({ ending = "decided", winner = 0, local_side = 0, chara = { 0, 1 }, record = "R" })
 		session:on_frame()
 		env:respond_next_http(200, env:set_json("GFIN", {
@@ -116,6 +123,51 @@ t.suite("app/session", function()
 			match = { status = "COMPLETED", firstTo = 1, finished = true, score = { host = 1, guest = 0 } },
 		}))
 		t.assert_eq(session:view().phase, "finished")
+		t.assert_not_nil(session:scoreboard())
+
+		env.in_match = false
+		session:on_frame()
+		t.assert_nil(session:scoreboard())
+	end)
+
+	t.test("isolates normal ranked and separate player match rooms from Rank Wars HUD and reporting", function()
+		local env = FakeEnv.new({
+			command_line = 'uni2.exe "?action=create&match=M123&token=TOK_HOST&api=https://rw.gg"',
+		})
+		local session = env:build_app().session
+		local match_body = host_match_json(env, { firstTo = 3 })
+
+		session:initialize()
+		session:on_frame()
+		session:on_frame()
+		env:respond_next_http(200, match_body)
+		env:set_lobby("555", "76561198000000001")
+		session:on_frame()
+		session:on_frame()
+		env:respond_next_http(200, "{}")
+		session:on_frame()
+		env:respond_next_http(200, match_body)
+		t.assert_not_nil(session:scoreboard())
+
+		env:set_lobby("999", "76561198000000001")
+		env.windows["rank_wars"].open = true
+		session:on_frame()
+		t.assert_nil(session:scoreboard())
+		session:on_game_started()
+		t.assert_true(env.windows["rank_wars"].open)
+		session:on_game_ended({ ending = "decided", winner = 0, local_side = 0, chara = { 0, 1 }, record = "R" })
+		t.assert_eq(#env.http_queue, 0)
+
+		env:set_lobby("555", "76561198000000001")
+		env:set_mem(env.api.offsets.MATCH_KIND, env.api.offsets.MATCH_KIND_RANK)
+		session:on_frame()
+		t.assert_nil(session:scoreboard())
+		session:on_game_ended({ ending = "decided", winner = 0, local_side = 0, chara = { 0, 1 }, record = "R" })
+		t.assert_eq(#env.http_queue, 0)
+
+		env:set_mem(env.api.offsets.MATCH_KIND, env.api.offsets.MATCH_KIND_PLAYER)
+		session:on_frame()
+		t.assert_not_nil(session:scoreboard())
 	end)
 
 	t.test("guest joins room, handles timeout, and retries after failure", function()

@@ -93,6 +93,9 @@ local kOffsets = {
 	ROOM_ALT_ROUND_TIME_ROW = 7,
 	ROOM_ROUNDS_TWO = 1,
 	ROOM_ROUND_TIME_DEFAULT_99 = 2,
+	MATCH_KIND = 0x50,
+	MATCH_KIND_RANK = 1,
+	MATCH_KIND_PLAYER = 2,
 }
 
 function FakeEnv:init(opts)

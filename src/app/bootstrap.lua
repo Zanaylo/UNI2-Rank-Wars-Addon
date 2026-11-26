@@ -82,6 +82,8 @@ function M.build(env)
 	local session = Session.new({
 		game = env.game,
 		steam = env.steam,
+		mem = env.mem,
+		offsets = env.offsets,
 		replay = env.replay,
 		fs = env.fs,
 		ui = env.ui,
