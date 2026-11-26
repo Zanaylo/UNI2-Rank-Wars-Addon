@@ -40,3 +40,8 @@ Extraia os arquivos (`addon.ini`, `main.lua` e a pasta `src/`) para:
 ```text
 <Pasta do UNI2>\UNI2-IM\Addons\RankWars\
 ```
+
+Para empacotar localmente:
+```powershell
+.\package.ps1
+```
