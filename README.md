@@ -2,8 +2,6 @@
 
 Add-on oficial do **Rank Wars** para o **UNI2 Improvement Mod** (`UNI2-IM\Addons\RankWars`).
 
-Este repositório é **100% independente** do fork do Improvement Mod — não contém C++, não compila `dinput8.dll` e atualiza automaticamente pelo **UNI2 Mod Loader**.
-
 ## Recursos
 
 - Leitura de links do Rank Wars (`create`, `join`, `replay`) via linha de comando e Steam launch query.
