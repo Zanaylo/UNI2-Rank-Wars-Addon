@@ -20,8 +20,9 @@ t.suite("app/replay_viewer", function()
 		t.assert_eq(env.toasts[1].kind, "warning")
 	end)
 
-	t.test("downloads, saves, leaves training, waits for main menu, and plays replay", function()
+	t.test("leaves training battle, ignores stale is_training on main menu, and plays even with capped scene_frames", function()
 		env.is_training = true
+		env:set_scene(env.api.offsets.SCENE_BATTLE, 90)
 		viewer:start({ replay = "rep_7", api = "https://rw.gg", token = "RT" }, false)
 		viewer:on_frame()
 
@@ -34,12 +35,13 @@ t.suite("app/replay_viewer", function()
 		t.assert_eq(env.leave_training_calls, 1)
 		t.assert_eq(#env.playback_requests, 0)
 
-		env.is_training = false
-		env:set_scene(env.api.offsets.SCENE_MAIN_MENU, 29)
-		viewer:on_frame()
+		env:set_scene(env.api.offsets.SCENE_MAIN_MENU, 4)
+		for _ = 1, 29 do
+			viewer:on_frame()
+		end
 		t.assert_eq(#env.playback_requests, 0)
+		t.assert_eq(env.leave_training_calls, 1)
 
-		env:set_scene(env.api.offsets.SCENE_MAIN_MENU, 30)
 		viewer:on_frame()
 		t.assert_eq(#env.playback_requests, 1)
 		t.assert_eq(viewer:stage(), "off")

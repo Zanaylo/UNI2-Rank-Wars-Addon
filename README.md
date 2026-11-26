@@ -49,7 +49,7 @@ Extraia os arquivos (`addon.ini`, `main.lua` e a pasta `src/`) para:
    git tag v1.0.0
    git push origin main --tags
    ```
-3. O GitHub Actions (`.github/workflows/release.yml`) gera e publica automaticamente o `UNI2-RankWars-v1.0.0.zip` na página de **Releases**, e o **UNI2 Mod Loader** detecta a atualização automaticamente para todos os jogadores.
+3. O GitHub Actions (`.github/workflows/release.yml`) gera e publica automaticamente o `UNI2-RankWars-1.0.0.zip` e o `addon-manifest.json` (com versão, tag e SHA-256) na página de **Releases**, e o **UNI2 Mod Loader** detecta, valida o hash e instala a atualização automaticamente para todos os jogadores.
 
 Para empacotar localmente:
 ```powershell

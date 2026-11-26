@@ -134,7 +134,7 @@ function ReplayViewer:step_waiting()
 		return
 	end
 
-	if self.game.scene() ~= self.offsets.SCENE_MAIN_MENU or self.game.scene_frames() < kMainMenuSettleFrames then
+	if self.room_flow:scene_frames_for(self.offsets.SCENE_MAIN_MENU) < kMainMenuSettleFrames then
 		return
 	end
 

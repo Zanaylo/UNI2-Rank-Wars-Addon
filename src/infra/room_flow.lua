@@ -3,12 +3,15 @@ local cooldown = require("src.core.cooldown")
 
 local RoomFlow = class()
 
-local kLeaveTrainingRetryMs = 3000
-local kNetworkRetryMs = 3000
+local kLeaveTrainingSettleFrames = 90
+local kLeaveTrainingRetryMs = 5000
+local kNetworkRetryMs = 5000
 local kJoinTimeoutMs = 45000
 local kMainMenuFrames = 30
 local kNetworkMenuRunning = 1
 local kNetworkListIdle = 1
+local kCreateStageIdle = 0
+local kCreateStageArmed = 1
 
 function RoomFlow:init(deps)
 	self.game = deps.game
@@ -18,15 +21,35 @@ function RoomFlow:init(deps)
 	self.time = deps.time
 	self.leave_cooldown = cooldown.Cooldown.new(kLeaveTrainingRetryMs, deps.time)
 	self.network_cooldown = cooldown.Cooldown.new(kNetworkRetryMs, deps.time)
+	self.tracked_scene = nil
+	self.tracked_frames = 0
 end
 
 function RoomFlow:reset_leave_cooldown()
 	self.leave_cooldown:reset()
 end
 
+function RoomFlow:scene_frames_for(expected_scene)
+	local current = self.game.scene()
+	if current ~= expected_scene then
+		self.tracked_scene = current
+		self.tracked_frames = 0
+		return 0
+	end
+	if self.tracked_scene ~= current then
+		self.tracked_scene = current
+		self.tracked_frames = 0
+	end
+	self.tracked_frames = self.tracked_frames + 1
+	return math.max(self.game.scene_frames(), self.tracked_frames)
+end
+
 function RoomFlow:leave_training_if_needed()
-	if not self.game.is_training() then
+	if self.game.scene() ~= self.offsets.SCENE_BATTLE or not self.game.is_training() then
 		return false
+	end
+	if self:scene_frames_for(self.offsets.SCENE_BATTLE) < kLeaveTrainingSettleFrames then
+		return true
 	end
 	if self.leave_cooldown:try_trigger() then
 		self.game.leave_training()
@@ -43,13 +66,23 @@ function RoomFlow:owned_lobby(self_id)
 end
 
 function RoomFlow:step_host_room(first_to)
-	self:leave_training_if_needed()
+	if self:leave_training_if_needed() then
+		return nil
+	end
 
-	if self.game.room_create_stage() == 0 then
+	if self.game.room_create_stage() == kCreateStageIdle then
 		self.game.room_create_start(first_to)
 	end
 	self.game.room_create_set_first_to(first_to)
-	self.game.room_create_step()
+	local stage = self.game.room_create_step()
+
+	if stage == kCreateStageArmed and self.steam.lobby() == "0"
+		and self:scene_frames_for(self.offsets.SCENE_MAIN_MENU) >= kMainMenuFrames
+	then
+		if self.network_cooldown:try_trigger() then
+			self.game.enter_network()
+		end
+	end
 
 	if self.game.room_create_timed_out() then
 		return "timed_out"
@@ -80,13 +113,15 @@ function RoomFlow:step_guest_prepare(target_lobby, target_owner)
 		return "joined"
 	end
 
-	self:leave_training_if_needed()
+	if self:leave_training_if_needed() then
+		return nil
+	end
 
 	if self.steam.lobby() ~= "0" then
 		return nil
 	end
 
-	if self.game.scene() == self.offsets.SCENE_MAIN_MENU and self.game.scene_frames() >= kMainMenuFrames then
+	if self:scene_frames_for(self.offsets.SCENE_MAIN_MENU) >= kMainMenuFrames then
 		if self.network_cooldown:try_trigger() then
 			self.game.enter_network()
 		end

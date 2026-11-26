@@ -15,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Package add-on ZIP
+      - name: Package add-on ZIP and manifest
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
@@ -24,5 +24,7 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/UNI2-RankWars-*.zip
+          files: |
+            dist/UNI2-RankWars-*.zip
+            dist/addon-manifest.json
           generate_release_notes: true
