@@ -9,8 +9,24 @@ Este repositório é **100% independente** do fork do Improvement Mod — não c
 - Leitura de links do Rank Wars (`create`, `join`, `replay`) via linha de comando e Steam launch query.
 - Criação automática de sala Player Match (limite de 2 jogadores + rematch conforme `first_to`) e entrada automática do convidado.
 - Captura de resultados e envio automático dos replays `.rep` para a API do Rank Wars com retry exponencial.
-- Placar ao vivo em pips direto no HUD da batalha (`hud.lua`).
+- Placar ao vivo em pips direto no HUD da batalha (`src/presentation/hud.lua`).
 - Janela in-game no menu F1 (`Mod -> Rank Wars`), toasts de notificação, Steam Rich Presence, Replay Viewer e modo Sandbox de teste.
+
+## Arquitetura
+
+```text
+main.lua                 Entry point mínimo (chama src/app/bootstrap.lua)
+src/
+  core/                  Primitivas puras e reutilizáveis (class, cooldown, state_machine)
+  domain/                Regras de negócio e contratos sem acoplamento com uni2.*
+  infra/                 Adaptadores HTTP, Steam, memória e automação de sala
+  app/                   Casos de uso (session, replay_viewer) e composition root (bootstrap)
+  presentation/          HUD D3D9 e janela ImGui
+tests/
+  support/               Runner, FakeEnv isolado e spies
+  unit/<camada>/         Specs unitários espelhando src/
+  integration/           Testes ponta a ponta do bootstrap/main.lua
+```
 
 ## Instalação
 
@@ -22,7 +38,7 @@ Este repositório é **100% independente** do fork do Improvement Mod — não c
 Para atualizar depois, basta clicar em **UPDATE LINKED** no `UNI2ModLoader.exe` (ou ativar a checagem automática no startup na aba **CORE BASE**).
 
 ### Instalação Manual
-Extraia os arquivos (`addon.ini` e `*.lua`) para:
+Extraia os arquivos (`addon.ini`, `main.lua` e a pasta `src/`) para:
 ```text
 <Pasta do UNI2>\UNI2-IM\Addons\RankWars\
 ```

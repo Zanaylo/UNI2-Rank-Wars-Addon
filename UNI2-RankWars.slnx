@@ -1,19 +1,71 @@
 <Solution>
-  <Folder Name="/Lua/">
+  <Folder Name="/Entry/">
     <File Path="main.lua" />
-    <File Path="session.lua" />
-    <File Path="client.lua" />
-    <File Path="protocol.lua" />
-    <File Path="launch_link.lua" />
-    <File Path="hud.lua" />
-    <File Path="ui.lua" />
-    <File Path="replay_viewer.lua" />
   </Folder>
-  <Folder Name="/Tests/">
+  <Folder Name="/src/" />
+  <Folder Name="/src/core/">
+    <File Path="src/core/class.lua" />
+    <File Path="src/core/cooldown.lua" />
+    <File Path="src/core/state_machine.lua" />
+  </Folder>
+  <Folder Name="/src/domain/">
+    <File Path="src/domain/launch_link.lua" />
+    <File Path="src/domain/protocol.lua" />
+    <File Path="src/domain/score_tracker.lua" />
+  </Folder>
+  <Folder Name="/src/infra/">
+    <File Path="src/infra/http_client.lua" />
+    <File Path="src/infra/launch_watcher.lua" />
+    <File Path="src/infra/presence.lua" />
+    <File Path="src/infra/room_flow.lua" />
+  </Folder>
+  <Folder Name="/src/app/">
+    <File Path="src/app/bootstrap.lua" />
+    <File Path="src/app/replay_viewer.lua" />
+    <File Path="src/app/session.lua" />
+  </Folder>
+  <Folder Name="/src/presentation/">
+    <File Path="src/presentation/hud.lua" />
+    <File Path="src/presentation/window.lua" />
+  </Folder>
+  <Folder Name="/tests/">
     <File Path="tests/run_tests.lua" />
+  </Folder>
+  <Folder Name="/tests/support/">
+    <File Path="tests/support/runner.lua" />
+    <File Path="tests/support/fake_env.lua" />
+    <File Path="tests/support/spies.lua" />
+  </Folder>
+  <Folder Name="/tests/unit/core/">
+    <File Path="tests/unit/core/class_spec.lua" />
+    <File Path="tests/unit/core/cooldown_spec.lua" />
+    <File Path="tests/unit/core/state_machine_spec.lua" />
+  </Folder>
+  <Folder Name="/tests/unit/domain/">
+    <File Path="tests/unit/domain/launch_link_spec.lua" />
+    <File Path="tests/unit/domain/protocol_spec.lua" />
+    <File Path="tests/unit/domain/score_tracker_spec.lua" />
+  </Folder>
+  <Folder Name="/tests/unit/infra/">
+    <File Path="tests/unit/infra/http_client_spec.lua" />
+    <File Path="tests/unit/infra/launch_watcher_spec.lua" />
+    <File Path="tests/unit/infra/presence_spec.lua" />
+    <File Path="tests/unit/infra/room_flow_spec.lua" />
+  </Folder>
+  <Folder Name="/tests/unit/app/">
+    <File Path="tests/unit/app/replay_viewer_spec.lua" />
+    <File Path="tests/unit/app/session_spec.lua" />
+  </Folder>
+  <Folder Name="/tests/unit/presentation/">
+    <File Path="tests/unit/presentation/hud_spec.lua" />
+    <File Path="tests/unit/presentation/window_spec.lua" />
+  </Folder>
+  <Folder Name="/tests/integration/">
+    <File Path="tests/integration/bootstrap_spec.lua" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path="addon.ini" />
+    <File Path=".luarc.json" />
     <File Path="package.ps1" />
     <File Path="README.md" />
     <File Path=".gitignore" />
