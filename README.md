@@ -36,7 +36,7 @@ tests/
 Para atualizar depois, basta clicar em **UPDATE LINKED** no `UNI2ModLoader.exe` (ou ativar a checagem automática no startup na aba **CORE BASE**).
 
 ### Instalação Manual
-Extraia os arquivos (`addon.ini`, `main.lua` e a pasta `src/`) para:
+Extraia os arquivos (`addon.ini` e `main.lua`) para:
 ```text
 <Pasta do UNI2>\UNI2-IM\Addons\RankWars\
 ```

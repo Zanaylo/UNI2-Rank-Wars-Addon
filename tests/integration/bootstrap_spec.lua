@@ -27,10 +27,12 @@ t.suite("integration/bootstrap", function()
 		t.assert_eq(#env.events["hud"], 1)
 		t.assert_eq(#env.events["game_started"], 1)
 		t.assert_eq(#env.events["game_ended"], 1)
+		t.assert_eq(#env.events["network_menu_opened"], 1)
+		t.assert_eq(#env.events["player_match_result"], 1)
 
 		env.events["frame"][1]()
 		env.events["frame"][1]()
-		t.assert_false(env.room_create_started)
+		t.assert_eq(env.enter_network_calls, 0)
 
 		local match_body = env:set_json("INT_MATCH", {
 			id = "M123",
@@ -44,8 +46,14 @@ t.suite("integration/bootstrap", function()
 		env:respond_next_http(200, match_body)
 
 		env.events["frame"][1]()
-		t.assert_true(env.room_create_started)
-		t.assert_eq(env.room_create_first_to, 3)
+		t.assert_eq(env.enter_network_calls, 1)
+
+		env:set_scene(env.api.offsets.SCENE_NETWORK, 10)
+		env.events["network_menu_opened"][1](0)
+		local root, rows = env:setup_create_room_screen({ room_type = 0 })
+		env.events["player_match_result"][1](root, 1)
+		t.assert_eq(env:get_abs(rows + env.api.offsets.ROOM_REMATCH_ROW * env.api.offsets.MENU_ROW_STRIDE + env.api.offsets.MENU_ROW_VALUE), 2)
+		t.assert_eq(env:get_abs(root + env.api.offsets.PLAYER_MATCH_CREATE_ANSWER), env.api.offsets.CREATE_MENU_CREATE_ROOM)
 
 		env:set_lobby("109775240999999", "76561198000000001")
 		env.events["frame"][1]()
@@ -84,5 +92,74 @@ t.suite("integration/bootstrap", function()
 		}))
 		t.assert_eq(game_req.method, "PUT")
 		t.assert_contains(game_req.url, "/games/1")
+	end)
+
+	t.test("bundled dist/RankWars/main.lua runs standalone with empty package.path", function()
+		local bundle_path = "dist/RankWars/main.lua"
+		local f = io.open(bundle_path, "r")
+		if not f then
+			return
+		end
+		f:close()
+
+		local saved_path = package.path
+		local saved_loaded = {}
+		local saved_preload = {}
+		for k, v in pairs(package.loaded) do
+			if k:sub(1, 4) == "src." then
+				saved_loaded[k] = v
+				package.loaded[k] = nil
+			end
+		end
+		for k, v in pairs(package.preload) do
+			if k:sub(1, 4) == "src." then
+				saved_preload[k] = v
+				package.preload[k] = nil
+			end
+		end
+
+		package.path = ""
+		env.fs_store[".\\addon.ini"] = "[Addon]\nVersion = 1.0.0\n"
+
+		local ok, err = pcall(function()
+			dofile(bundle_path)
+			t.assert_not_nil(env.windows["rank_wars"])
+			t.assert_eq(#env.events["frame"], 1)
+			env.windows["rank_wars"].draw()
+			env.events["frame"][1]()
+			env.events["frame"][1]()
+			local req = env:respond_next_http(200, env:set_json("B_MATCH", {
+				id = "M123",
+				status = "IN_PROGRESS",
+				role = "host",
+				firstTo = 3,
+				score = { host = 0, guest = 0 },
+				host = { displayName = "Zanaylo", steamId64 = "76561198000000001" },
+				guest = { displayName = "Rival", steamId64 = "76561198000000002" },
+			}))
+			t.assert_eq(req.method, "GET")
+		end)
+
+		package.path = saved_path
+		for k in pairs(package.loaded) do
+			if k:sub(1, 4) == "src." then
+				package.loaded[k] = nil
+			end
+		end
+		for k, v in pairs(saved_loaded) do
+			package.loaded[k] = v
+		end
+		for k in pairs(package.preload) do
+			if k:sub(1, 4) == "src." then
+				package.preload[k] = nil
+			end
+		end
+		for k, v in pairs(saved_preload) do
+			package.preload[k] = v
+		end
+
+		if not ok then
+			error(err, 0)
+		end
 	end)
 end)

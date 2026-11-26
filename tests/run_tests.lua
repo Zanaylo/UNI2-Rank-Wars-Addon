@@ -13,6 +13,7 @@ local specs = {
 	"tests.unit.infra.http_client_spec",
 	"tests.unit.infra.launch_watcher_spec",
 	"tests.unit.infra.presence_spec",
+	"tests.unit.infra.room_creator_spec",
 	"tests.unit.infra.room_flow_spec",
 	"tests.unit.app.replay_viewer_spec",
 	"tests.unit.app.session_spec",

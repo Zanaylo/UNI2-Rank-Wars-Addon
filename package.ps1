@@ -29,6 +29,32 @@ function Parse-AddonIni {
     return $meta
 }
 
+function Build-BundledLua {
+    param([string]$RootDir)
+    $srcDir = Join-Path $RootDir "src"
+    if (-not (Test-Path $srcDir)) { throw "Missing required directory: src" }
+
+    $entryPath = Join-Path $RootDir "main.lua"
+    if (-not (Test-Path $entryPath)) { throw "Missing required file: main.lua" }
+
+    $builder = New-Object System.Text.StringBuilder
+    $files = Get-ChildItem -Path $srcDir -Recurse -Filter "*.lua" -File | Sort-Object FullName
+
+    foreach ($file in $files) {
+        $rel = $file.FullName.Substring($RootDir.Length + 1)
+        $moduleName = ($rel -replace '\.lua$', '' -replace '[\\/]', '.')
+        $content = (Get-Content -Path $file.FullName -Raw -Encoding UTF8) -replace "\r\n", "`n"
+        [void]$builder.Append("package.preload[`"$moduleName`"] = function(...)`n")
+        [void]$builder.Append($content.TrimEnd("`n"))
+        [void]$builder.Append("`nend`n`n")
+    }
+
+    $entryContent = (Get-Content -Path $entryPath -Raw -Encoding UTF8) -replace "\r\n", "`n"
+    [void]$builder.Append($entryContent.TrimEnd("`n"))
+    [void]$builder.Append("`n")
+    return $builder.ToString()
+}
+
 $meta = Parse-AddonIni -Path $iniPath
 $rawVersion = if ($Version) { $Version.Trim() } else { $meta.version }
 if (-not $rawVersion) { throw "Version not found in $iniPath" }
@@ -47,29 +73,18 @@ if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 if (Test-Path $zip) { Remove-Item $zip -Force }
 New-Item -ItemType Directory -Force $stage | Out-Null
 
-$rootFiles = @(
-    "addon.ini",
-    "main.lua",
-    "README.md"
-)
-
-foreach ($file in $rootFiles) {
-    $src = Join-Path $root $file
-    if (-not (Test-Path $src)) { throw "Missing required file: $file" }
-    Copy-Item $src (Join-Path $stage $file) -Force
-}
-
 $stagedIni = Join-Path $stage "addon.ini"
-$iniContent = Get-Content -Path $stagedIni -Raw -Encoding UTF8
+$iniContent = Get-Content -Path $iniPath -Raw -Encoding UTF8
 $iniUpdated = $iniContent -replace '(?m)^(\s*Version\s*=\s*).*$', "`${1}$cleanVersion"
 [IO.File]::WriteAllText($stagedIni, $iniUpdated, (New-Object System.Text.UTF8Encoding $false))
 
-$srcDir = Join-Path $root "src"
-if (-not (Test-Path $srcDir)) { throw "Missing required directory: src" }
-Copy-Item $srcDir (Join-Path $stage "src") -Recurse -Force
+$bundledLua = Build-BundledLua -RootDir $root
+$stagedMain = Join-Path $stage "main.lua"
+[IO.File]::WriteAllText($stagedMain, $bundledLua, (New-Object System.Text.UTF8Encoding $false))
 
 Compress-Archive -Path $stage -DestinationPath $zip -Force
 $hash = (Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLower()
+$size = (Get-Item $zip).Length
 
 $iconSrc = Join-Path $root "icon.png"
 if (Test-Path $iconSrc) {
@@ -93,6 +108,6 @@ $manifestJson = $manifest | ConvertTo-Json -Depth 4
 [IO.File]::WriteAllText($manifestPath, $manifestJson, (New-Object System.Text.UTF8Encoding $false))
 
 Write-Host "Packaged Rank Wars add-on $cleanVersion ($tag)"
-Write-Host "  -> $zip"
+Write-Host "  -> $zip ($size bytes)"
 Write-Host "  -> $manifestPath"
 Write-Host "  sha256: $hash"

@@ -19,8 +19,16 @@ local kGameResultLabels = {
 	DISPUTED = "DISPUTED, sent for review",
 }
 
+local kHostRoomErrors = {
+	network_error = "Network failed while creating the room. UNI2 cannot recover from this automatically; restart the game and open the Rank Wars link again",
+	steam_offline = "Steam is offline. Reconnect Steam and click Try again",
+	timed_out = "The room could not be created automatically. Create a Player Match room and it is sent by itself",
+}
+
 local kGuestJoinErrors = {
 	unsupported = "This game version cannot join the room by itself. Join through the Steam invite",
+	network_error = "Network failed while connecting to online mode. UNI2 cannot recover from this automatically; restart the game and open the Rank Wars link again",
+	steam_offline = "Steam is offline. Reconnect Steam and click Try again",
 	flow_error = "The host's room is closed or could not be reached. Ask the host for a new link",
 	timed_out = "Could not get into the room in time. Ask the host for a new link",
 }
@@ -186,6 +194,8 @@ end
 function Session:fail(message)
 	self:set_phase("failed")
 	self.error = message
+	self.ui.set_open("rank_wars", true)
+	self.toast("error", kToastTitle, message)
 	self.warn("rank wars: " .. message)
 end
 
@@ -281,6 +291,7 @@ function Session:start_match(link)
 	self.error = ""
 	self.last_game = ""
 	self.tracker:reset()
+	self.room_flow:reset()
 	self.match_fetch_cooldown:reset()
 	self:set_phase("waiting_steam")
 
@@ -364,8 +375,10 @@ function Session:step_waiting_room()
 		return
 	end
 
-	if self.room_flow:step_host_room(self.tracker.info.first_to) == "timed_out" then
-		self:fail("The room could not be created automatically. Create a Player Match room and it is sent by itself")
+	local outcome = self.room_flow:step_host_room(self.tracker.info.first_to)
+	local err = kHostRoomErrors[outcome]
+	if err then
+		self:fail(err)
 	end
 end
 
@@ -579,6 +592,7 @@ function Session:retry()
 		return
 	end
 	self.error = ""
+	self.room_flow:reset()
 	self:set_phase(self:is_host() and "waiting_room" or "waiting_join")
 	self:fetch_match()
 end

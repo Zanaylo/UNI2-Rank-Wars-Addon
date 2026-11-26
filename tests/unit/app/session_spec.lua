@@ -21,7 +21,8 @@ t.suite("app/session", function()
 		local env = FakeEnv.new({
 			command_line = 'uni2.exe "?action=create&match=M123&token=TOK_HOST&api=https%3A%2F%2Frankwars.test"',
 		})
-		local session = env:build_app().session
+		local app = env:build_app()
+		local session = app.session
 
 		session:initialize()
 		t.assert_eq(session:view().phase, "waiting_steam")
@@ -29,26 +30,26 @@ t.suite("app/session", function()
 
 		session:on_frame()
 		session:on_frame()
-		t.assert_false(env.room_create_started)
+		t.assert_false(app.room_creator:is_active())
 		t.assert_eq(session:view().detail, "Reading match settings")
 
 		local req = env:respond_next_http(200, host_match_json(env))
 		t.assert_eq(req.method, "GET")
 
 		session:on_frame()
-		t.assert_true(env.room_create_started)
-		t.assert_eq(env.room_create_first_to, 3)
+		t.assert_true(app.room_creator:is_active())
+		t.assert_eq(app.room_creator.first_to, 3)
 
 		env:set_lobby("109775240999999", "76561198000000001")
 		session:on_frame()
-		t.assert_eq(env.room_create_stops, 1)
+		t.assert_false(app.room_creator:is_active())
 
 		session:on_frame()
 		local room_req = env:respond_next_http(200, "{}")
 		t.assert_eq(room_req.method, "PUT")
 		t.assert_contains(room_req.url, "/room")
 		t.assert_eq(session:view().phase, "in_match")
-		t.assert_eq(env.room_create_stops, 1)
+		t.assert_false(app.room_creator:is_active())
 	end)
 
 	t.test("auto-closes window on game_started and uploads replay on game_ended", function()
@@ -178,5 +179,39 @@ t.suite("app/session", function()
 		t.assert_eq(abort_req.method, "POST")
 		t.assert_contains(abort_req.url, "/abort")
 		t.assert_eq(session:view().phase, "aborted")
+	end)
+
+	t.test("surfaces host network failure in window and error toast, then resets on retry", function()
+		local env = FakeEnv.new({
+			command_line = 'uni2.exe "?action=create&match=M77&token=TOK_HOST&api=https://rw.gg"',
+		})
+		local app = env:build_app()
+		local session = app.session
+		local match_body = host_match_json(env, { id = "M77", tag = "net" })
+
+		session:initialize()
+		session:on_frame()
+		session:on_frame()
+		env:respond_next_http(200, match_body)
+
+		env.windows["rank_wars"].open = false
+		env:set_scene(env.api.offsets.SCENE_NETWORK, 60)
+		app.room_creator:start(3)
+		app.room_creator:note_stage("creating_room")
+		session:on_frame()
+
+		env:set_mem(env.api.offsets.NETWORK_FLOW_ERROR, 3)
+		session:on_frame()
+
+		t.assert_eq(session:view().phase, "failed")
+		t.assert_contains(session:view().error, "restart the game")
+		t.assert_true(env.windows["rank_wars"].open)
+		t.assert_true(#env.toasts >= 1)
+		t.assert_eq(env.toasts[#env.toasts].kind, "error")
+
+		env:set_mem(env.api.offsets.NETWORK_FLOW_ERROR, 0)
+		session:retry()
+		t.assert_eq(session:view().phase, "waiting_room")
+		t.assert_eq(session:view().error, "")
 	end)
 end)

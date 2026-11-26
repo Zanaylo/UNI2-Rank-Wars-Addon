@@ -36,17 +36,63 @@ local function json_encode(val)
 	return "{" .. table.concat(parts, ",") .. "}"
 end
 
+local kBaseAddress = 0x10000000
+
 local kOffsets = {
+	SCENE_ID = 0x10,
+	SCENE_REQUEST = 0x14,
 	SCENE_BATTLE = 20,
 	SCENE_MAIN_MENU = 1,
 	SCENE_NETWORK = 50,
 	SCENE_CHARA_SELECT = 10,
 	SCENE_REPLAY_LIST = 60,
 	NETWORK_MENU = 0x100,
-	NETWORK_MENU_STATE = 0x10,
-	NETWORK_MENU_LIST = 0x20,
+	NETWORK_MENU_STATE = 0x00,
+	NETWORK_MENU_PENDING = 0x08,
+	NETWORK_MENU_LIST = 0x10,
+	NETWORK_MENU_PICK = 0x14,
+	NETWORK_MENU_PROFILE_CARD = 0x4c,
+	NETWORK_PICK_CREATE_ROOM = 5,
+	PROFILE_CARD_STATE = 0x00,
+	PROFILE_CARD_DISMISS = 0x08,
+	PROFILE_CARD_DONE = 4,
+	NETWORK_INIT_ERROR = 0x24,
+	NETWORK_STEP_STATE = 0x28,
+	NETWORK_STEP_ERROR = 0x2c,
+	NETWORK_STEP_ERROR_VALUE = 10,
 	NETWORK_FLOW_ERROR = 0x30,
 	ROOM_TASK_STATE = 0x40,
+	PLAYER_MATCH_ROOT = 0x2000,
+	PLAYER_MATCH_STATE = 0x00,
+	PLAYER_MATCH_DIALOG_STEP = 0x2c,
+	PLAYER_MATCH_CREATE_MENU = 0x3c,
+	PLAYER_MATCH_CREATE_ANSWER = 0x40,
+	PLAYER_MATCH_ROOM_TYPE = 0x708,
+	PLAYER_MATCH_SETTINGS = 0x728,
+	PLAYER_MATCH_ALT_SETTINGS = 0x7d4,
+	PLAYER_MATCH_USE_ALT_SETTINGS = 0xd6c,
+	PLAYER_MATCH_CREATE_SCREEN = 4,
+	PLAYER_MATCH_DIALOG_OPEN = 1,
+	CREATE_MENU_CHOOSING = 0,
+	CREATE_MENU_UNANSWERED = -1,
+	CREATE_MENU_CREATE_ROOM = 0,
+	MENU_PAGES = 0x04,
+	MENU_PAGE_STRIDE = 0x0c,
+	MENU_ROW_STRIDE = 0xfc,
+	MENU_ROW_VALUE = 0x4c,
+	ROOM_CAPACITY_ROW = 3,
+	ROOM_CAPACITY_TWO_PEOPLE = 0,
+	ROOM_REMATCH_ROW = 11,
+	ROOM_ROUNDS_ROW = 12,
+	ROOM_ROUND_TIME_ROW = 13,
+	ROOM_TYPE1_REMATCH_ROW = 7,
+	ROOM_TYPE1_ROUNDS_ROW = 8,
+	ROOM_TYPE1_ROUND_TIME_ROW = 9,
+	ROOM_ALT_REMATCH_ROW = 5,
+	ROOM_ALT_ROUNDS_ROW = 6,
+	ROOM_ALT_ROUND_TIME_ROW = 7,
+	ROOM_ROUNDS_TWO = 1,
+	ROOM_ROUND_TIME_DEFAULT_99 = 2,
 }
 
 function FakeEnv:init(opts)
@@ -82,6 +128,7 @@ function FakeEnv:init(opts)
 	self.room_create_stops = 0
 	self.leave_training_calls = 0
 	self.enter_network_calls = 0
+	self.requested_scenes = {}
 	self.claim_pad_calls = 0
 	self.joined_lobby = nil
 	self.joined_owner = nil
@@ -92,6 +139,7 @@ function FakeEnv:init(opts)
 	self.fs_store = {}
 	self.json_map = {}
 	self.mem_store = {}
+	self.abs_mem = {}
 	self.toasts = {}
 	self.logs = {}
 	self.warnings = {}
@@ -192,11 +240,56 @@ function FakeEnv:build_api()
 			end,
 		},
 		mem = {
+			rva = function(rva)
+				return kBaseAddress + rva
+			end,
+			read_i32 = function(addr)
+				local v = env.abs_mem[addr]
+				if v ~= nil then
+					return v
+				end
+				if addr >= kBaseAddress then
+					return env.mem_store[addr - kBaseAddress] or 0
+				end
+				return 0
+			end,
+			read_u32 = function(addr)
+				local v = env.abs_mem[addr]
+				if v ~= nil then
+					return v
+				end
+				if addr >= kBaseAddress then
+					return env.mem_store[addr - kBaseAddress] or 0
+				end
+				return 0
+			end,
+			read_u16 = function(addr)
+				return env.abs_mem[addr] or 0
+			end,
+			read_u8 = function(addr)
+				return env.abs_mem[addr] or 0
+			end,
+			write_i32 = function(addr, value)
+				env.abs_mem[addr] = value
+				if addr >= kBaseAddress then
+					env.mem_store[addr - kBaseAddress] = value
+				end
+				return true
+			end,
+			write_u16 = function(addr, value)
+				env.abs_mem[addr] = value
+				return true
+			end,
+			write_u8 = function(addr, value)
+				env.abs_mem[addr] = value
+				return true
+			end,
 			read_rva_i32 = function(rva)
 				return env.mem_store[rva] or 0
 			end,
 			write_rva_i32 = function(rva, value)
 				env.mem_store[rva] = value
+				env.abs_mem[kBaseAddress + rva] = value
 				return true
 			end,
 		},
@@ -231,6 +324,15 @@ function FakeEnv:build_api()
 			claim_pad = function()
 				env.claim_pad_calls = env.claim_pad_calls + 1
 				return 0
+			end,
+			request_scene = function(scene)
+				env.requested_scenes[#env.requested_scenes + 1] = scene
+				if scene == kOffsets.SCENE_NETWORK then
+					env.enter_network_calls = env.enter_network_calls + 1
+				elseif scene == kOffsets.SCENE_MAIN_MENU then
+					env.leave_training_calls = env.leave_training_calls + 1
+				end
+				return true
 			end,
 			enter_network = function()
 				env.enter_network_calls = env.enter_network_calls + 1
@@ -482,6 +584,48 @@ end
 
 function FakeEnv:set_mem(rva, value)
 	self.mem_store[rva] = value
+	self.abs_mem[kBaseAddress + rva] = value
+end
+
+function FakeEnv:set_abs(addr, value)
+	self.abs_mem[addr] = value
+end
+
+function FakeEnv:get_abs(addr)
+	return self.abs_mem[addr]
+end
+
+function FakeEnv:setup_create_room_screen(opts)
+	opts = opts or {}
+	local o = kOffsets
+	local root = kBaseAddress + o.PLAYER_MATCH_ROOT
+	local page_addr = opts.page_addr or 0x20000000
+	local rows_addr = opts.rows_addr or 0x21000000
+	local row_count = opts.row_count or 16
+
+	self.abs_mem[root + o.PLAYER_MATCH_STATE] = o.PLAYER_MATCH_CREATE_SCREEN
+	self.abs_mem[root + o.PLAYER_MATCH_DIALOG_STEP] = o.PLAYER_MATCH_DIALOG_OPEN
+	self.abs_mem[root + o.PLAYER_MATCH_CREATE_MENU] = o.CREATE_MENU_CHOOSING
+	self.abs_mem[root + o.PLAYER_MATCH_CREATE_ANSWER] = o.CREATE_MENU_UNANSWERED
+	self.abs_mem[root + o.PLAYER_MATCH_ROOM_TYPE] = opts.room_type or 0
+	self.abs_mem[root + o.PLAYER_MATCH_USE_ALT_SETTINGS] = opts.use_alt and 1 or 0
+
+	self.abs_mem[root + o.PLAYER_MATCH_SETTINGS + o.MENU_PAGES] = page_addr
+	self.abs_mem[root + o.PLAYER_MATCH_SETTINGS + o.MENU_PAGES + 4] = page_addr + o.MENU_PAGE_STRIDE
+	self.abs_mem[page_addr] = rows_addr
+	self.abs_mem[page_addr + 4] = rows_addr + row_count * o.MENU_ROW_STRIDE
+
+	local alt_rows_addr = opts.alt_rows_addr or 0x22000000
+	if opts.use_alt then
+		local alt_page_addr = opts.alt_page_addr or 0x20100000
+		local alt_count = opts.alt_row_count or 10
+		self.abs_mem[root + o.PLAYER_MATCH_ALT_SETTINGS + o.MENU_PAGES] = alt_page_addr
+		self.abs_mem[root + o.PLAYER_MATCH_ALT_SETTINGS + o.MENU_PAGES + 4] = alt_page_addr + o.MENU_PAGE_STRIDE
+		self.abs_mem[alt_page_addr] = alt_rows_addr
+		self.abs_mem[alt_page_addr + 4] = alt_rows_addr + alt_count * o.MENU_ROW_STRIDE
+	end
+
+	return root, rows_addr, alt_rows_addr
 end
 
 function FakeEnv:set_json(body, tbl)

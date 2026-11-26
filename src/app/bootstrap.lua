@@ -5,6 +5,7 @@ local ScoreTracker = require("src.domain.score_tracker")
 local HttpClient = require("src.infra.http_client")
 local LaunchWatcher = require("src.infra.launch_watcher")
 local Presence = require("src.infra.presence")
+local RoomCreator = require("src.infra.room_creator")
 local RoomFlow = require("src.infra.room_flow")
 local ReplayViewer = require("src.app.replay_viewer")
 local Session = require("src.app.session")
@@ -37,12 +38,24 @@ function M.build(env)
 		return HttpClient.new(api_url, token, steam_id, client_deps)
 	end
 
+	local room_creator = RoomCreator.new({
+		game = env.game,
+		mem = env.mem,
+		offsets = env.offsets,
+		time = env.time,
+		log = env.log,
+		warn = env.warn,
+	})
+
 	local room_flow = RoomFlow.new({
 		game = env.game,
 		steam = env.steam,
 		mem = env.mem,
 		offsets = env.offsets,
 		time = env.time,
+		log = env.log,
+		warn = env.warn,
+		room_creator = room_creator,
 	})
 
 	local replay_viewer = ReplayViewer.new({
@@ -102,6 +115,7 @@ function M.build(env)
 	return {
 		protocol = protocol,
 		client_factory = client_factory,
+		room_creator = room_creator,
 		room_flow = room_flow,
 		replay_viewer = replay_viewer,
 		launch_watcher = launch_watcher,
@@ -140,6 +154,14 @@ function M.start(env)
 
 	env.on("game_ended", function(report)
 		app.session:on_game_ended(report)
+	end)
+
+	env.on("network_menu_opened", function(mode)
+		app.room_creator:on_network_menu_opened(mode)
+	end)
+
+	env.on("player_match_result", function(root_addr, result)
+		app.room_creator:on_player_match_result(root_addr, result)
 	end)
 
 	env.log("Rank Wars Lua add-on initialized")
