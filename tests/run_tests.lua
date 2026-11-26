@@ -7,6 +7,7 @@ local specs = {
 	"tests.unit.core.cooldown_spec",
 	"tests.unit.core.state_machine_spec",
 	"tests.unit.domain.launch_link_spec",
+	"tests.unit.domain.manifest_spec",
 	"tests.unit.domain.protocol_spec",
 	"tests.unit.domain.score_tracker_spec",
 	"tests.unit.infra.http_client_spec",

@@ -33,6 +33,7 @@ function Window:init(session, hud, deps)
 	self.ui = deps.ui
 	self.config = deps.config
 	self.clock = deps.clock
+	self.version_label = (deps.version and deps.version ~= "") and ("v" .. deps.version) or ""
 	self.confirming = false
 	self.reason = ""
 	self.test_loaded = false
@@ -82,8 +83,15 @@ function Window:draw_header(view)
 	local y2 = y + height
 
 	ui.draw_rect_filled_multi(x, y, x2, y2, kAccent, kAccentDark)
-	local _, th = ui.calc_text_size("RANK WARS", 1.35)
-	ui.draw_text(x + ui.scaled(12.0), y + (height - th) * 0.5, kText, "RANK WARS", 1.35)
+	local tw, th = ui.calc_text_size("RANK WARS", 1.35)
+	local title_x = x + ui.scaled(12.0)
+	local title_y = y + (height - th) * 0.5
+	ui.draw_text(title_x, title_y, kText, "RANK WARS", 1.35)
+
+	if self.version_label ~= "" then
+		local _, vh = ui.calc_text_size(self.version_label, 0.85)
+		ui.draw_text(title_x + tw + ui.scaled(8.0), title_y + th - vh, kText, self.version_label, 0.85)
+	end
 
 	if view.role == "" then
 		return

@@ -40,18 +40,3 @@ Extraia os arquivos (`addon.ini`, `main.lua` e a pasta `src/`) para:
 ```text
 <Pasta do UNI2>\UNI2-IM\Addons\RankWars\
 ```
-
-## Como publicar uma nova versão no GitHub
-
-1. Atualize `Version = ...` em `addon.ini` e faça commit das alterações em `main`.
-2. Crie e envie uma tag de release:
-   ```powershell
-   git tag v1.0.0
-   git push origin main --tags
-   ```
-3. O GitHub Actions (`.github/workflows/release.yml`) gera e publica automaticamente o `UNI2-RankWars-1.0.0.zip` e o `addon-manifest.json` (com versão, tag e SHA-256) na página de **Releases**, e o **UNI2 Mod Loader** detecta, valida o hash e instala a atualização automaticamente para todos os jogadores.
-
-Para empacotar localmente:
-```powershell
-.\package.ps1
-```

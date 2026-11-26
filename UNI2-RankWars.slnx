@@ -10,6 +10,7 @@
   </Folder>
   <Folder Name="/src/domain/">
     <File Path="src/domain/launch_link.lua" />
+    <File Path="src/domain/manifest.lua" />
     <File Path="src/domain/protocol.lua" />
     <File Path="src/domain/score_tracker.lua" />
   </Folder>
@@ -43,6 +44,7 @@
   </Folder>
   <Folder Name="/tests/unit/domain/">
     <File Path="tests/unit/domain/launch_link_spec.lua" />
+    <File Path="tests/unit/domain/manifest_spec.lua" />
     <File Path="tests/unit/domain/protocol_spec.lua" />
     <File Path="tests/unit/domain/score_tracker_spec.lua" />
   </Folder>
@@ -69,6 +71,5 @@
     <File Path="package.ps1" />
     <File Path="README.md" />
     <File Path=".gitignore" />
-    <File Path=".github/workflows/release.yml" />
   </Folder>
 </Solution>

@@ -6,6 +6,7 @@ t.suite("presentation/window", function()
 		local env = FakeEnv.new({
 			command_line = 'uni2.exe "?action=create&match=M5&token=T5&api=https://rw.gg"',
 		})
+		env.fs_store[".\\addon.ini"] = "[Addon]\nVersion = 1.0.0\n"
 		local app = env:build_app()
 
 		app.session:initialize()
@@ -29,6 +30,15 @@ t.suite("presentation/window", function()
 
 		t.assert_eq(env.ui_clipboard, "https://rw.gg/join/M5")
 		t.assert_false(app.hud:is_visible())
+		t.assert_eq(app.window.version_label, "v1.0.0")
+		local saw_version = false
+		for _, text in ipairs(env.ui_texts) do
+			if text == "v1.0.0" then
+				saw_version = true
+				break
+			end
+		end
+		t.assert_true(saw_version)
 	end)
 
 	t.test("handles abort confirmation flow and test match creation", function()

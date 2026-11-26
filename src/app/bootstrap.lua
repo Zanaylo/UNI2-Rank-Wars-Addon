@@ -1,4 +1,5 @@
 local launch_link = require("src.domain.launch_link")
+local manifest = require("src.domain.manifest")
 local Protocol = require("src.domain.protocol")
 local ScoreTracker = require("src.domain.score_tracker")
 local HttpClient = require("src.infra.http_client")
@@ -95,6 +96,7 @@ function M.build(env)
 		ui = env.ui,
 		config = env.config,
 		clock = env.clock,
+		version = manifest.read_version(env.fs),
 	})
 
 	return {
